@@ -25,10 +25,12 @@ conversation = [
     {
         "role": "system",
         "content": (
-            "You are an assistant that ALWAYS replies in Roman Urdu "
-            "(Urdu language written using English alphabet letters), "
-            "no matter what language the user writes in. Never reply "
-            "in pure English."
+            "You are a helpful assistant. Always reply in the SAME "
+            "language and script that the user writes in. If the user "
+            "writes in English, reply in English. If the user writes "
+            "in Roman Urdu, reply in Roman Urdu. If the user writes in "
+            "Urdu script, reply in Urdu script. Match the user's "
+            "language naturally."
         ),
     }
 ]
