@@ -4,12 +4,10 @@ from groq import Groq
 from dotenv import load_dotenv
 from twilio.twiml.messaging_response import MessagingResponse
 
-# .env file se environment variables load karo
 load_dotenv()
 
 app = Flask(__name__)
 
-# API key ab .env file se aayegi, code mein hardcoded nahi hai
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
 if not GROQ_API_KEY:
@@ -32,13 +30,10 @@ SYSTEM_PROMPT = {
     ),
 }
 
-# Har user (web session ya WhatsApp number) ki apni alag conversation
-# yahan store hoti hai, taake sab logon ke messages aapas mein mix na hon.
 conversations = {}
 
 
 def get_ai_reply(user_key, user_message):
-    """Kisi bhi user (web ya WhatsApp) ke message ka AI se jawab leta hai"""
     if user_key not in conversations:
         conversations[user_key] = [SYSTEM_PROMPT]
 
@@ -52,7 +47,6 @@ def get_ai_reply(user_key, user_message):
 
     conversations[user_key].append({"role": "assistant", "content": ai_reply})
 
-    # History bohat lambi na ho jaye is liye sirf last 20 messages rakhte hain
     if len(conversations[user_key]) > 21:
         conversations[user_key] = [SYSTEM_PROMPT] + conversations[user_key][-20:]
 
@@ -76,8 +70,6 @@ def chat():
     if not user_message:
         return jsonify({"error": "Message khaali nahi ho sakta"}), 400
 
-    # Web chat ke liye simple session key (agar future mein multi-user
-    # web chat chahiye ho to isay Flask session se replace kar sakte hain)
     user_key = "web_user"
 
     try:
@@ -90,7 +82,6 @@ def chat():
 
 @app.route("/whatsapp", methods=["POST"])
 def whatsapp():
-    """Twilio yahan incoming WhatsApp messages bhejta hai"""
     incoming_message = request.form.get("Body", "").strip()
     sender_number = request.form.get("From", "unknown")
 
@@ -111,16 +102,9 @@ def whatsapp():
 
 @app.route("/reset", methods=["POST"])
 def reset():
-    """Conversation history reset karne ke liye"""
     data = request.get_json(silent=True) or {}
     user_key = data.get("user_key", "web_user")
     conversations[user_key] = [SYSTEM_PROMPT]
-    return jsonify({"status": "conversation reset ho gayi"})
-
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
-
     return jsonify({"status": "conversation reset ho gayi"})
 
 
