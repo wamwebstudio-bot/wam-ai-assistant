@@ -2,6 +2,7 @@ import os
 from flask import Flask, render_template, request, jsonify
 from groq import Groq
 from dotenv import load_dotenv
+from twilio.twiml.messaging_response import MessagingResponse
 
 # .env file se environment variables load karo
 load_dotenv()
@@ -19,21 +20,43 @@ if not GROQ_API_KEY:
 
 client = Groq(api_key=GROQ_API_KEY)
 
-# Har user session ke liye alag conversation rakhna better hai,
-# lekin simple version ke liye ek global list use kar rahe hain.
-conversation = [
-    {
-        "role": "system",
-        "content": (
-            "You are a helpful assistant. Always reply in the SAME "
-            "language and script that the user writes in. If the user "
-            "writes in English, reply in English. If the user writes "
-            "in Roman Urdu, reply in Roman Urdu. If the user writes in "
-            "Urdu script, reply in Urdu script. Match the user's "
-            "language naturally."
-        ),
-    }
-]
+SYSTEM_PROMPT = {
+    "role": "system",
+    "content": (
+        "You are a helpful assistant. Always reply in the SAME "
+        "language and script that the user writes in. If the user "
+        "writes in English, reply in English. If the user writes "
+        "in Roman Urdu, reply in Roman Urdu. If the user writes in "
+        "Urdu script, reply in Urdu script. Match the user's "
+        "language naturally."
+    ),
+}
+
+# Har user (web session ya WhatsApp number) ki apni alag conversation
+# yahan store hoti hai, taake sab logon ke messages aapas mein mix na hon.
+conversations = {}
+
+
+def get_ai_reply(user_key, user_message):
+    """Kisi bhi user (web ya WhatsApp) ke message ka AI se jawab leta hai"""
+    if user_key not in conversations:
+        conversations[user_key] = [SYSTEM_PROMPT]
+
+    conversations[user_key].append({"role": "user", "content": user_message})
+
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=conversations[user_key],
+    )
+    ai_reply = response.choices[0].message.content
+
+    conversations[user_key].append({"role": "assistant", "content": ai_reply})
+
+    # History bohat lambi na ho jaye is liye sirf last 20 messages rakhte hain
+    if len(conversations[user_key]) > 21:
+        conversations[user_key] = [SYSTEM_PROMPT] + conversations[user_key][-20:]
+
+    return ai_reply
 
 
 @app.route("/")
@@ -53,27 +76,51 @@ def chat():
     if not user_message:
         return jsonify({"error": "Message khaali nahi ho sakta"}), 400
 
-    conversation.append({"role": "user", "content": user_message})
+    # Web chat ke liye simple session key (agar future mein multi-user
+    # web chat chahiye ho to isay Flask session se replace kar sakte hain)
+    user_key = "web_user"
 
     try:
-        response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=conversation,
-        )
-        ai_reply = response.choices[0].message.content
+        ai_reply = get_ai_reply(user_key, user_message)
     except Exception as e:
         return jsonify({"error": f"AI se jawab lene mein masla hua: {str(e)}"}), 500
 
-    conversation.append({"role": "assistant", "content": ai_reply})
-
     return jsonify({"reply": ai_reply})
+
+
+@app.route("/whatsapp", methods=["POST"])
+def whatsapp():
+    """Twilio yahan incoming WhatsApp messages bhejta hai"""
+    incoming_message = request.form.get("Body", "").strip()
+    sender_number = request.form.get("From", "unknown")
+
+    resp = MessagingResponse()
+
+    if not incoming_message:
+        resp.message("Maazrat, mujhe koi message nahi mila.")
+        return str(resp)
+
+    try:
+        ai_reply = get_ai_reply(sender_number, incoming_message)
+    except Exception as e:
+        ai_reply = f"Maazrat, abhi jawab dene mein masla hua: {str(e)}"
+
+    resp.message(ai_reply)
+    return str(resp)
 
 
 @app.route("/reset", methods=["POST"])
 def reset():
     """Conversation history reset karne ke liye"""
-    global conversation
-    conversation = [conversation[0]]  # sirf system message rakho
+    data = request.get_json(silent=True) or {}
+    user_key = data.get("user_key", "web_user")
+    conversations[user_key] = [SYSTEM_PROMPT]
+    return jsonify({"status": "conversation reset ho gayi"})
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)
+
     return jsonify({"status": "conversation reset ho gayi"})
 
 
