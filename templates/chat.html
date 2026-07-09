@@ -37,6 +37,25 @@
         align-items: center;
         justify-content: center;
         gap: 10px;
+        position: relative;
+    }
+    .voice-toggle {
+        position: absolute;
+        right: 14px;
+        background: rgba(255,255,255,0.15);
+        border: none;
+        color: white;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .voice-toggle.active {
+        background: #2ecc71;
     }
     .chat-header img {
         width: 40px;
@@ -77,7 +96,21 @@
         background: #e6ecf0;
         color: #1a1a1a;
         border-bottom-left-radius: 4px;
+        position: relative;
+        padding-right: 34px;
     }
+    .replay-btn {
+        position: absolute;
+        bottom: 6px;
+        right: 8px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 14px;
+        opacity: 0.6;
+        padding: 2px;
+    }
+    .replay-btn:hover { opacity: 1; }
     .typing {
         align-self: flex-start;
         color: #888;
@@ -119,6 +152,7 @@
     <div class="chat-header">
         <img src="{{ url_for('static', filename='logo.jpg') }}" alt="WAM logo">
         <span>WAM AI Assistant</span>
+        <button class="voice-toggle" id="voiceToggle" title="Bot ki awaaz on/off karein">&#128264;</button>
     </div>
     <div class="chat-messages" id="messages">
         <div class="msg bot">Assalam-o-Alaikum! Main WAM AI Assistant hoon. Aapki kis tarah madad kar sakta hoon?</div>
@@ -133,11 +167,53 @@
 const messagesDiv = document.getElementById('messages');
 const input = document.getElementById('userInput');
 const sendBtn = document.getElementById('sendBtn');
+const voiceToggle = document.getElementById('voiceToggle');
+
+let voiceEnabled = false;
+
+// Bot ka message bolne ka function
+function speakText(text) {
+    if (!('speechSynthesis' in window)) return;
+
+    window.speechSynthesis.cancel(); // pehle se koi bol raha ho to rok do
+
+    const utterance = new SpeechSynthesisUtterance(text);
+
+    // Roman Urdu ke liye Hindi/Urdu awaaz best kaam karti hai agar mojood ho
+    const voices = window.speechSynthesis.getVoices();
+    const preferredVoice = voices.find(v => v.lang === 'hi-IN' || v.lang === 'ur-PK')
+                         || voices.find(v => v.lang.startsWith('en'));
+    if (preferredVoice) utterance.voice = preferredVoice;
+
+    utterance.rate = 0.95;
+    utterance.pitch = 1;
+    window.speechSynthesis.speak(utterance);
+}
+
+// Speaker toggle button
+voiceToggle.addEventListener('click', () => {
+    voiceEnabled = !voiceEnabled;
+    voiceToggle.classList.toggle('active', voiceEnabled);
+    if (!voiceEnabled) window.speechSynthesis.cancel();
+});
 
 function addMessage(text, sender) {
     const div = document.createElement('div');
     div.className = 'msg ' + sender;
-    div.textContent = text;
+
+    const textSpan = document.createElement('span');
+    textSpan.textContent = text;
+    div.appendChild(textSpan);
+
+    if (sender === 'bot') {
+        const replayBtn = document.createElement('button');
+        replayBtn.className = 'replay-btn';
+        replayBtn.innerHTML = '&#128264;';
+        replayBtn.title = 'Dobara sunein';
+        replayBtn.addEventListener('click', () => speakText(text));
+        div.appendChild(replayBtn);
+    }
+
     messagesDiv.appendChild(div);
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
@@ -167,6 +243,7 @@ async function sendMessage() {
 
         if (data.reply) {
             addMessage(data.reply, 'bot');
+            if (voiceEnabled) speakText(data.reply);
         } else {
             addMessage('Error: ' + (data.error || 'Kuch masla hua'), 'bot');
         }
@@ -187,3 +264,4 @@ input.addEventListener('keydown', (e) => {
 
 </body>
 </html>
+
