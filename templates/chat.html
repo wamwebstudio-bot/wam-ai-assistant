@@ -165,10 +165,10 @@
         <button class="voice-toggle" id="voiceToggle" title="Bot ki awaaz on/off karein">&#128264;</button>
     </div>
     <div class="chat-messages" id="messages">
-        <div class="msg bot">Assalam-o-Alaikum! Main WAM AI Assistant hoon. Aapki kis tarah madad kar sakta hoon?</div>
+        <div class="msg bot">Hi! I'm WAM AI Assistant. How can I help you today?</div>
     </div>
     <div class="chat-input">
-        <input type="text" id="userInput" placeholder="Apna message likhein ya bolein..." autocomplete="off">
+        <input type="text" id="userInput" placeholder="Type or speak your message..." autocomplete="off">
         <button id="micBtn" title="Bol kar likhein">&#127908;</button>
         <button id="sendBtn">&#9658;</button>
     </div>
@@ -239,7 +239,7 @@ async function sendMessage() {
 
     const typingDiv = document.createElement('div');
     typingDiv.className = 'typing';
-    typingDiv.textContent = 'Likh raha hai...';
+    typingDiv.textContent = 'Typing...';
     messagesDiv.appendChild(typingDiv);
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
 
@@ -260,7 +260,7 @@ async function sendMessage() {
         }
     } catch (err) {
         typingDiv.remove();
-        addMessage('Connection mein masla hua. Dubara koshish karein.', 'bot');
+        addMessage('Connection error. Please try again.', 'bot');
     }
 
     sendBtn.disabled = false;
@@ -299,13 +299,13 @@ if (SpeechRecognitionAPI) {
     recognition.addEventListener('start', () => {
         isListening = true;
         micBtn.classList.add('listening');
-        input.placeholder = 'Sun raha hoon... boliye';
+        input.placeholder = 'Listening... speak now';
     });
 
     recognition.addEventListener('end', () => {
         isListening = false;
         micBtn.classList.remove('listening');
-        input.placeholder = 'Apna message likhein ya bolein...';
+        input.placeholder = 'Type or speak your message...';
     });
 
     recognition.addEventListener('result', (event) => {
@@ -317,7 +317,7 @@ if (SpeechRecognitionAPI) {
     recognition.addEventListener('error', (event) => {
         isListening = false;
         micBtn.classList.remove('listening');
-        input.placeholder = 'Apna message likhein ya bolein...';
+        input.placeholder = 'Type or speak your message...';
     });
 } else {
     // Agar browser support na kare to mic button chhupa dein
@@ -327,3 +327,4 @@ if (SpeechRecognitionAPI) {
 
 </body>
 </html>
+
